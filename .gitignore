@@ -1,0 +1,10 @@
+# Internal reference materials — NEVER commit (the proprietary QC blacklist & policy)
+*.xlsx
+*.pptx
+*.png
+*.pdf
+
+# OS / editor noise
+Thumbs.db
+.DS_Store
+.vscode/

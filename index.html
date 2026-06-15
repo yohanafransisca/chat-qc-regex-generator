@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Regex Generator for Chat QC</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --ink:#1f2430; --muted:#6b7280;
+    --line:#e3e6ea; --accent:#2563eb; --accent-weak:#eff4ff;
+    --ok:#15803d; --ok-bg:#ecfdf3; --no:#b42318; --no-bg:#fef3f2;
+    --warn:#b45309; --warn-bg:#fffbeb; --code:#0f172a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  header{background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px}
+  header h1{font-size:18px; margin:0; font-weight:650}
+  header p{margin:4px 0 0; color:var(--muted); font-size:13px}
+  main{max-width:1320px; margin:0 auto; padding:22px 22px 64px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start}
+  @media (max-width:780px){ .grid{grid-template-columns:1fr} }
+  .col{display:flex; flex-direction:column; gap:18px; min-width:0}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px}
+  .step{display:flex; align-items:center; gap:8px; margin:0 0 14px}
+  .step .num{width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:12px; font-weight:700; display:grid; place-items:center}
+  .step h2{font-size:14px; margin:0; font-weight:650}
+  label{display:block; font-size:13px; color:var(--muted); margin:0 0 5px}
+  textarea,input[type=text]{width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:14px/1.5 system-ui; color:var(--ink); background:#fff; resize:vertical}
+  textarea:focus,input:focus{outline:2px solid var(--accent-weak); border-color:var(--accent)}
+  .field{margin-bottom:14px}
+  .inline{display:flex; gap:8px; align-items:flex-end}
+  .inline .field{flex:1; margin-bottom:0}
+  .opts{display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-top:12px}
+  .opts label{display:flex; align-items:center; gap:6px; color:var(--ink); margin:0; cursor:pointer; font-size:13px}
+  .presets{display:flex; gap:12px; align-items:center; margin-left:auto}
+  .presets span{color:var(--muted); font-size:13px}
+  .modes{display:flex; gap:14px; align-items:center; font-size:13px}
+  .modes label{display:flex; align-items:center; gap:5px; cursor:pointer; color:var(--ink); margin:0}
+  button{background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap}
+  button:hover{filter:brightness(1.05)}
+  button.ghost{background:#fff; color:var(--accent); border:1px solid var(--line)}
+  button.sm{padding:7px 11px; font-size:13px}
+  .row{display:flex; gap:10px; align-items:center; margin-top:16px}
+  .perms{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{background:var(--accent-weak); color:var(--accent); border-radius:999px; padding:4px 10px; font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace}
+  .suggestbar{background:var(--warn-bg); border:1px solid #fde68a; border-radius:8px; padding:9px 12px; margin-top:10px; font-size:13px; display:none}
+  .suggestbar.show{display:block}
+  .suggestbar .vars{color:var(--warn); font-weight:600; font-family:ui-monospace,Menlo,Consolas,monospace}
+  .rxrow{margin-bottom:10px}
+  .rxhead{display:flex; align-items:center; gap:8px; margin-bottom:4px}
+  .rxhead .lbl{font-size:12px; color:var(--muted); font-weight:600}
+  .rxhead .count{margin-left:auto; font-size:12px; font-weight:700; color:var(--ok)}
+  .rxhead .count.over{color:var(--no)}
+  .regexbox{width:100%; border:1px solid var(--line); border-radius:8px; padding:11px 13px; font:13.5px/1.6 ui-monospace,Menlo,Consolas,monospace; color:var(--code); background:#0f172a08; word-break:break-all; min-height:42px}
+  .note{font-size:12.5px; color:var(--muted); margin-top:8px; display:flex; gap:6px}
+  .note b{color:var(--ink); font-weight:600}
+  .test-results{display:flex; flex-direction:column; gap:8px; margin-top:14px}
+  .tr{display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); font-size:14px}
+  .tr .txt{flex:1; font-family:ui-monospace,Menlo,Consolas,monospace; word-break:break-word}
+  .tr mark{background:#fde68a; border-radius:3px; padding:0 2px}
+  .badge{font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap}
+  .badge.ok{color:var(--ok); background:var(--ok-bg)}
+  .badge.no{color:var(--no); background:var(--no-bg)}
+  .err{color:var(--no); font-size:13px; margin-top:8px}
+  .muted{color:var(--muted); font-size:13px}
+  .placeholder{color:var(--muted); font-size:13.5px; font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <h1>Regex Generator for Chat QC</h1>
+  <p>Paste a violating message → confirm the keyword → get evasion-proof regex (≤255 chars) → test it before adding to QC.</p>
+</header>
+
+<main>
+ <div class="grid">
+  <!-- LEFT COLUMN -->
+  <div class="col">
+    <!-- 1. INPUT -->
+    <section class="card">
+      <div class="step"><span class="num">1</span><h2>INPUT</h2>
+        <span class="modes" style="margin-left:auto">
+          <label><input type="radio" name="mode" value="keyword" checked /> Keyword</label>
+          <label><input type="radio" name="mode" value="phone" /> Phone number</label>
+        </span>
+      </div>
+      <div class="field">
+        <label for="message">Violating chat message</label>
+        <textarea id="message" rows="2" placeholder="e.g. wkwk dasar anj33ng lu admin"></textarea>
+      </div>
+
+      <!-- KEYWORD MODE -->
+      <div id="kw-mode">
+        <div class="inline" style="margin-bottom:6px">
+          <div class="field">
+            <label for="keywords">Violating keyword(s) — comma-separated</label>
+            <input type="text" id="keywords" placeholder="e.g. anjing, kontol" />
+          </div>
+          <button id="suggest" class="ghost sm" title="Auto-detect disguised violating words in the message">🔍 Suggest from message</button>
+        </div>
+        <div id="suggestbar" class="suggestbar"></div>
+        <div class="opts">
+          <label><input type="checkbox" id="opt-leet" checked /> leetspeak</label>
+          <label><input type="checkbox" id="opt-sep" checked /> separators</label>
+          <label><input type="checkbox" id="opt-rep" checked /> repeated letters</label>
+          <label><input type="checkbox" id="opt-ci" checked /> case-insensitive</label>
+          <span class="presets">
+            <span>Strictness:</span>
+            <label><input type="radio" name="preset" value="tight" /> Tight</label>
+            <label><input type="radio" name="preset" value="loose" checked /> Loose</label>
+          </span>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label for="exclusions">Exclude when message also contains (optional) — comma-separated</label>
+          <input type="text" id="exclusions" placeholder="e.g. shopee, aplikasi, garansi, minyak" />
+        </div>
+      </div>
+
+      <!-- PHONE MODE -->
+      <div id="phone-mode" style="display:none">
+        <div class="inline" style="margin-bottom:6px">
+          <div class="field">
+            <label>Detect disguised phone numbers in the message</label>
+            <div class="muted" style="font-size:12.5px">Catches forms like <code>O89 69O 885 151</code>, <code>823(3) 616 (4141)</code>, <code>0812-xxxx-xxxx</code>.</div>
+          </div>
+          <button id="suggest-phone" class="ghost sm" title="Find phone-like numbers in the message">🔍 Find numbers</button>
+        </div>
+        <div id="phonebar" class="suggestbar"></div>
+        <div class="opts">
+          <label>Min digits <input type="number" id="ph-min" value="9" min="4" max="15" style="width:54px; padding:6px 8px" /></label>
+          <label><input type="checkbox" id="ph-ozero" checked /> O/o as 0</label>
+          <label><input type="checkbox" id="ph-sep" checked /> allow separators</label>
+          <label><input type="checkbox" id="ph-prefix" /> require 0 / 62 prefix</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="generate">Generate</button>
+        <button id="reset" class="ghost">Reset</button>
+        <span class="muted" id="input-hint">Built-in word list is generic profanity for detection only — not your QC blacklist.</span>
+      </div>
+    </section>
+
+    <!-- 2. PERMUTATIONS -->
+    <section class="card">
+      <div class="step"><span class="num">2</span><h2>PERMUTATIONS&nbsp;<span class="muted" style="font-weight:400">— sample of what this catches</span></h2></div>
+      <div id="perms" class="perms"><span class="placeholder">Generate to see sample evasions…</span></div>
+    </section>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="col">
+    <!-- 3. REGEX -->
+    <section class="card">
+      <div class="step"><span class="num">3</span><h2>SUGGESTED REGEX&nbsp;<span class="muted" style="font-weight:400">— max 255 chars each</span></h2>
+        <button id="copyall" class="ghost sm" style="margin-left:auto">Copy all</button>
+      </div>
+      <div id="regex-list"><span class="placeholder">Generate to build regex…</span></div>
+      <div id="ci-note" class="note"><b>ⓘ</b><span></span></div>
+    </section>
+
+    <!-- 4. TEST -->
+    <section class="card">
+      <div class="step"><span class="num">4</span><h2>TEST IT&nbsp;<span class="muted" style="font-weight:400">— one sample per line</span></h2></div>
+      <textarea id="tests" rows="4" placeholder="anj33ng&#10;a n j i n g&#10;ranjang baru"></textarea>
+      <div id="test-results" class="test-results"></div>
+      <p class="note"><b>⚠</b><span>Tester uses the JavaScript regex engine; your QC system may differ — confirm syntax with your developer (see DEV-QUESTIONS).</span></p>
+    </section>
+  </div>
+ </div>
+</main>
+
+<script>
+"use strict";
+const MAXLEN = 255;
+const PREFIX = '(^|[\\W_])(';   // actual string: (^|[\W_])(  -> 10 chars
+const SUFFIX = ')($|[\\W_])';   // actual string: )($|[\W_])  -> 10 chars
+const ALT_BUDGET = MAXLEN - PREFIX.length - SUFFIX.length; // 107
+
+// ---- leetspeak ----
+const LEET = { a:'a4@', b:'b8', c:'c', d:'d', e:'e3', f:'f', g:'g9', h:'h', i:'i1!',
+  j:'j', k:'k', l:'l1', m:'m', n:'n', o:'o0', p:'p', q:'q', r:'r', s:'s5$', t:'t7',
+  u:'u', v:'v', w:'w', x:'x', y:'y', z:'z2' };
+const LEET_ONE = { a:'4', e:'3', i:'1', o:'0', s:'5', g:'9', t:'7', b:'8', z:'2', l:'1' };
+const DELEET = { '0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','8':'b','9':'g','@':'a','$':'s','!':'i' };
+
+// ---- violation seed list (DETECTION ONLY — editable, NOT the QC blacklist) ----
+// Built from KB_Policies in ID. Each keyword is tagged with its violation category.
+// `root` = canonical word put into the keyword field; `cat` = policy category;
+// `variants` = forms to detect (incl. regional / other-language forms, e.g. "anjing").
+const CONCEPT_GROUPS = [
+  // ABUSIVE — animal curses & daily insults
+  { root:'anjing', cat:'Abusive', variants:['anjing','anjeng','anjg','anjng','asu','aing','anjiang','anying','njing','jing','cicing','biang','babai','kirik'] },
+  { root:'babi',   cat:'Abusive', variants:['babi','bagong','celeng'] },
+  { root:'monyet', cat:'Abusive', variants:['monyet','monyong','kunyuk'] },
+  { root:'bangsat',cat:'Abusive', variants:['bangsat','bgst','bajingan','bedebah','kampret','keparat'] },
+  { root:'goblok', cat:'Abusive', variants:['goblok','goblog','geblek','bego','dungu','oon','tolol','idiot','kampungan'] },
+  { root:'sialan', cat:'Abusive', variants:['sialan','sial','asw','mampus','edan','sinting','sarap','gendeng','miskin'] },
+  { root:'tai',    cat:'Abusive', variants:['tai','taik','tae','tahi'] },
+  { root:'setan',  cat:'Abusive', variants:['setan','iblis','jahanam','laknat','jurig'] },
+  { root:'jancuk', cat:'Abusive', variants:['jancuk','jancok','dancok'] },
+  { root:'banci',  cat:'Abusive', variants:['banci','bencong','bences','homo','maho','lesbong'] },
+  { root:'pelacur',cat:'Abusive', variants:['pelacur','lonte','sundel','sundal','jablay','perek','bispak','jalang'] },
+  // SARA / racist & religious slur (high false-positive risk — human must validate)
+  { root:'cina',   cat:'SARA/Racist', variants:['cina','cokin','keling','negro','nigga','chink'] },
+  { root:'kafir',  cat:'SARA/Racist', variants:['kafir','murtad'] },
+  // SEXUAL — genitals / vulgar / sexual harassment
+  { root:'kontol', cat:'Sexual', variants:['kontol','kntl','kontl','peli','titit'] },
+  { root:'memek',  cat:'Sexual', variants:['memek','mmk','pepek','meki','itil','kimak','pantek'] },
+  { root:'ngentot',cat:'Sexual', variants:['ngentot','entot','ewe','ngewe','colmek','coli','sange'] },
+  // THREAT
+  { root:'santet', cat:'Threat', variants:['santet','viralkan','sebar','bunuh','tusuk'] },
+  // PROHIBITED SKU / suspicious selling
+  { root:'rokok',  cat:'Prohibited SKU', variants:['rokok','roko','vape'] },
+  { root:'gestun', cat:'Prohibited SKU', variants:['gestun'] },
+  { root:'judi',   cat:'Prohibited SKU', variants:['judi','slot','togel','gacor'] },
+  { root:'ganja',  cat:'Prohibited SKU', variants:['ganja','sabu','napza','tramadol','sitotek','cytotec','hexymer'] },
+  { root:'dapurbuzzer', cat:'Prohibited SKU', variants:['dapurbuzzer','followers','boosting'] },
+  // REDIRECTION outside Shopee (phone numbers handled as their own template later)
+  { root:'whatsapp', cat:'Redirection', variants:['wa','whatsapp','wawa','watsap','wasap'] },
+  { root:'instagram',cat:'Redirection', variants:['ig','instagram','insta'] },
+  // COMPETITOR
+  { root:'tiktok', cat:'Competitor', variants:['tiktok','tokopedia','lazada','blibli','bukalapak'] },
+  // CHAT TO CANCEL
+  { root:'batal',  cat:'Chat-to-Cancel', variants:['batal','batalin','batalkan','membatalkan'] },
+
+  // ---- MULTI-WORD PHRASES (detected via sliding window over the message) ----
+  { root:'pesan lewat',     cat:'Redirection',    variants:['pesan lewat','pesen lewat','order lewat','beli lewat','order via','pesan via','transaksi lewat','order diluar'] },
+  { root:'transfer manual', cat:'Redirection',    variants:['transfer manual','tf manual','bayar manual','pembayaran manual','bayar diluar'] },
+  { root:'chat admin',      cat:'Redirection',    variants:['chat admin','hubungi admin','chat wa','hubungi wa','fast respon'] },
+  { root:'follow ig',       cat:'Redirection',    variants:['follow ig','follow instagram','follow olshop','cek ig'] },
+  { root:'checkout ulang',  cat:'Chat-to-Cancel', variants:['checkout ulang','co ulang','order ulang','pesan ulang'] },
+];
+
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function escapeClass(s){ return s.replace(/[\]\\^-]/g, '\\$&'); }
+
+function letterClass(ch, opts){
+  const lower = ch.toLowerCase();
+  let chars = (opts.leet && LEET[lower]) ? LEET[lower] : lower;
+  if(!opts.ci){
+    const upper = chars.replace(/[a-z]/g, c => c.toUpperCase());
+    chars = Array.from(new Set((chars + upper).split(''))).join('');
+  }
+  if(chars.length === 1) return escapeRegex(chars);
+  return '[' + escapeClass(chars) + ']';
+}
+
+function buildFragment(keyword, opts){
+  const units = [];
+  for(const ch of keyword){
+    if(/\s/.test(ch)){ units.push('[\\W_]+'); continue; }
+    if(/[a-z]/i.test(ch)){ let u = letterClass(ch, opts); if(opts.rep) u += '+'; units.push(u); }
+    else if(/[0-9]/.test(ch)){ let u = escapeRegex(ch); if(opts.rep) u += '+'; units.push(u); }
+    else units.push(escapeRegex(ch));
+  }
+  const isSep = u => u.startsWith('[\\W_]');
+  let frag = '';
+  for(let i=0;i<units.length;i++){
+    if(i>0 && opts.sep && !isSep(units[i-1]) && !isSep(units[i])) frag += '[\\W_]*';
+    frag += units[i];
+  }
+  return frag;
+}
+function wrap(alt){ return PREFIX + alt + SUFFIX; }
+
+// plain (non-leetspeak) fragment for exclusion context words; space -> word gap
+function plainFragment(word){
+  let out = '';
+  for(const ch of word.trim()){ out += /\s/.test(ch) ? '[\\W_]+' : escapeRegex(ch); }
+  return out;
+}
+
+// greedily pack fragments into alternations, each within `budget` chars
+function binPack(frags, budget){
+  const bins = []; let cur = []; let curLen = 0;
+  for(const frag of frags){
+    if(frag.length > budget){ if(cur.length){ bins.push(cur); cur=[]; curLen=0; } bins.push([frag]); continue; }
+    const add = (cur.length ? 1 : 0) + frag.length;
+    if(curLen + add > budget && cur.length){ bins.push(cur); cur=[]; curLen=0; }
+    cur.push(frag); curLen += (cur.length>1 ? 1 : 0) + frag.length;
+  }
+  if(cur.length) bins.push(cur);
+  return bins.map(b => b.join('|'));
+}
+
+// Build one OR MORE patterns, each <= MAXLEN. With exclusions, emit the
+// negative-lookahead dialect: match keyword but NOT when an excluded word is present.
+function buildPatterns(keywords, opts, exclusions){
+  const frags = keywords.map(k=>k.trim()).filter(Boolean).map(k=>buildFragment(k,opts));
+  if(!frags.length) return [];
+  if(exclusions && exclusions.length){
+    const exclAlt = exclusions.map(plainFragment).filter(Boolean).join('|');
+    const exclPrefix = '^(?!.*(?:^|[\\W_])(?:' + exclAlt + ')(?:[\\W_]|$))';
+    const head = '(?=.*(?:^|[\\W_])(';
+    const midTail = ')(?:[\\W_]|$))';
+    const budget = Math.max(1, MAXLEN - (exclPrefix.length + head.length + midTail.length));
+    return binPack(frags, budget).map(a => exclPrefix + head + a + midTail);
+  }
+  return binPack(frags, ALT_BUDGET).map(a => wrap(a));
+}
+
+// ---- detection ----
+function canonical(w){
+  let s = w.toLowerCase().split('').map(c => DELEET[c] || c).join('');
+  s = s.replace(/[^a-z]/g, '');
+  s = s.replace(/(.)\1+/g, '$1');
+  return s;
+}
+const CANON_INDEX = (() => {
+  const m = new Map();
+  for(const g of CONCEPT_GROUPS) for(const v of g.variants) m.set(canonical(v), g);
+  return m;
+})();
+function suggestFromMessage(msg){
+  const tokens = msg.split(/\s+/).filter(Boolean);
+  const cands = new Set(tokens);
+  // join maximal runs of single-character tokens -> catches "a n j i n g"
+  let run = [];
+  const flush = () => { if(run.length>1) cands.add(run.join('')); run=[]; };
+  for(const t of tokens){ if(t.length===1) run.push(t); else flush(); }
+  flush();
+  // sliding-window 2-grams & 3-grams -> catches multi-word phrases like "pesan lewat"
+  for(let i=0;i<tokens.length;i++){
+    if(i+1 < tokens.length) cands.add(tokens[i]+' '+tokens[i+1]);
+    if(i+2 < tokens.length) cands.add(tokens[i]+' '+tokens[i+1]+' '+tokens[i+2]);
+  }
+  const found = new Map(); const groups = new Set();
+  for(const c of cands){
+    const g = CANON_INDEX.get(canonical(c));
+    if(g){ found.set(g.root, { root:g.root, cat:g.cat }); groups.add(g); }
+  }
+  const roots = [...found.values()];
+  const rootNames = roots.map(r => r.root);
+  const regional = [];
+  for(const g of groups) for(const v of g.variants) if(!rootNames.includes(v)) regional.push(v);
+  return { roots, regional:[...new Set(regional)] };
+}
+
+// ---- sample permutations ----
+function candidatesFor(k){
+  const base = k.trim().toLowerCase();
+  if(!base) return [];
+  return [ base,
+    base.replace(/[aeiosgtbzl]/g, c=>LEET_ONE[c]||c),
+    base.split('').join(' '),
+    base.split('').join('.'),
+    base.replace(/([aeiou])/, '$1$1') ];
+}
+function samplePermutations(keywords, regexes){
+  const out = [];
+  for(const k of keywords){
+    for(const c of candidatesFor(k)){
+      if(out.includes(c)) continue;
+      if(regexes.some(re => re.test(c))) out.push(c);
+    }
+  }
+  return out.slice(0, 18);
+}
+
+// ---- phone-number mode ----
+function getPhoneOpts(){ return {
+  min:    Math.max(4, parseInt(document.getElementById('ph-min').value, 10) || 9),
+  ozero:  document.getElementById('ph-ozero').checked,
+  sep:    document.getElementById('ph-sep').checked,
+  prefix: document.getElementById('ph-prefix').checked }; }
+
+function buildPhoneRegex(o){
+  const digit = o.ozero ? '[0-9oO]' : '[0-9]';
+  const sep = o.sep ? '[\\W_]*' : '';
+  const rest = Math.max(0, o.min - 1);                       // digits after the leading 8
+  const pre = o.prefix
+    ? '(?:\\+?6'+sep+'2|0|[oO])'+sep                          // mandatory 0 / 62 prefix
+    : '(?:(?:\\+?6'+sep+'2|0|[oO])'+sep+')?';                 // optional prefix
+  return PREFIX + pre + '8(?:'+sep+digit+'){'+rest+',13}' + SUFFIX;
+}
+
+function phoneSamples(o){
+  const body = '08' + '12345678901234'.slice(0, Math.max(7, o.min - 1));
+  return [
+    body,
+    body.replace(/0/g, 'O'),
+    body.replace(/(\d{4})(?=\d)/g, '$1 ').trim(),
+    body.split('').join('-'),
+    '(' + body.slice(0, 4) + ') ' + body.slice(4)
+  ];
+}
+
+// extract phone-like substrings from a message (O/o treated as 0)
+function extractNumbers(msg, o){
+  const norm = msg.replace(/[oO]/g, '0');                    // same length -> indices align
+  const re = /[0-9][0-9\W_]{4,}[0-9]/g;
+  const out = []; let m;
+  while((m = re.exec(norm))){
+    if(m[0].replace(/\D/g, '').length >= o.min) out.push(msg.substr(m.index, m[0].length).trim());
+  }
+  return [...new Set(out)];
+}
+
+// ---- compile / test ----
+function compile(src, ci){
+  let s = src.trim().replace(/^\(\?i\)/, '');
+  const inlineCI = s !== src.trim();
+  return new RegExp(s, (ci || inlineCI) ? 'i' : '');
+}
+function compileAll(patterns, ci){
+  const res = [];
+  for(const p of patterns){ if(!p.trim()) continue; try{ res.push(compile(p, ci)); }catch(e){} }
+  return res;
+}
+function escapeHtml(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function currentPatterns(){
+  return [...document.querySelectorAll('#regex-list .regexbox')].map(b => b.innerText.trim()).filter(Boolean);
+}
+function runTests(){
+  const ci = document.getElementById('opt-ci').checked;
+  const patterns = currentPatterns();
+  const out = document.getElementById('test-results');
+  out.innerHTML = '';
+  if(!patterns.length) return;
+  let regexes;
+  try { regexes = patterns.map(p => compile(p, ci)); }
+  catch(e){ out.innerHTML = '<div class="err">Invalid regex: '+escapeHtml(e.message)+'</div>'; return; }
+  const lines = document.getElementById('tests').value.split('\n');
+  for(const line of lines){
+    if(line.trim()==='') continue;
+    let hit = null;
+    for(const re of regexes){ const m = re.exec(line); if(m){ hit = m; break; } }
+    const div = document.createElement('div'); div.className = 'tr';
+    if(hit){
+      const s = hit.index, e = hit.index + hit[0].length;
+      div.innerHTML = '<span class="txt">'+escapeHtml(line.slice(0,s))+'<mark>'+escapeHtml(line.slice(s,e))+'</mark>'+escapeHtml(line.slice(e))+'</span><span class="badge ok">✓ MATCH</span>';
+    } else {
+      div.innerHTML = '<span class="txt">'+escapeHtml(line)+'</span><span class="badge no">✗ NO MATCH</span>';
+    }
+    out.appendChild(div);
+  }
+}
+
+// ---- render regex rows ----
+function renderRegex(patterns){
+  const list = document.getElementById('regex-list');
+  list.innerHTML = '';
+  if(!patterns.length){ list.innerHTML = '<span class="placeholder">Generate to build regex…</span>'; return; }
+  patterns.forEach((p, i) => {
+    const row = document.createElement('div'); row.className = 'rxrow';
+    const head = document.createElement('div'); head.className = 'rxhead';
+    const lbl = patterns.length>1 ? 'Regex '+(i+1)+'/'+patterns.length : 'Regex';
+    head.innerHTML = '<span class="lbl">'+lbl+'</span><button class="ghost sm copy1">Copy</button><span class="count"></span>';
+    const box = document.createElement('div'); box.className = 'regexbox'; box.contentEditable = 'true'; box.spellcheck = false; box.textContent = p;
+    const count = head.querySelector('.count');
+    const update = () => { const n = box.innerText.trim().length; count.textContent = n+'/'+MAXLEN; count.classList.toggle('over', n>MAXLEN); };
+    update();
+    box.addEventListener('input', () => { update(); runTests(); });
+    head.querySelector('.copy1').addEventListener('click', () => copyText(box.innerText.trim(), head.querySelector('.copy1')));
+    row.appendChild(head); row.appendChild(box); list.appendChild(row);
+  });
+}
+
+function copyText(t, btn){
+  if(!t) return;
+  const done = () => { const o = btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=o,1200); };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(fb); } else fb();
+  function fb(){ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); done();}catch(e){} document.body.removeChild(ta); }
+}
+
+// ---- wiring ----
+function currentOpts(){ return {
+  leet: document.getElementById('opt-leet').checked,
+  sep:  document.getElementById('opt-sep').checked,
+  rep:  document.getElementById('opt-rep').checked,
+  ci:   document.getElementById('opt-ci').checked }; }
+function getKeywords(){ return document.getElementById('keywords').value.split(',').map(s=>s.trim()).filter(Boolean); }
+function getExclusions(){ return document.getElementById('exclusions').value.split(',').map(s=>s.trim()).filter(Boolean); }
+function currentMode(){ return document.querySelector('input[name=mode]:checked').value; }
+
+function applyPreset(name){
+  document.getElementById('opt-leet').checked = true;
+  document.getElementById('opt-sep').checked = (name==='loose');
+  document.getElementById('opt-rep').checked = (name==='loose');
+}
+
+function doSuggest(){
+  const msg = document.getElementById('message').value;
+  const bar = document.getElementById('suggestbar');
+  if(!msg.trim()){ bar.className='suggestbar'; return { roots:[], regional:[] }; }
+  const { roots, regional } = suggestFromMessage(msg);
+  if(roots.length){
+    const kwField = document.getElementById('keywords');
+    const existing = getKeywords();
+    const rootNames = roots.map(r => r.root);
+    const merged = [...new Set([...existing, ...rootNames])];
+    kwField.value = merged.join(', ');
+    const detected = roots.map(r => r.root + ' <em style="font-style:normal;color:var(--muted)">('+r.cat+')</em>').join(', ');
+    let html = 'Detected: <span class="vars">'+detected+'</span>. ';
+    if(regional.length){
+      html += 'Regional/other-language variants: <span class="vars">'+regional.join(', ')+'</span> '
+            + '<button class="ghost sm" id="add-regional">+ Add variants</button>';
+    }
+    html += ' <span class="muted">(edit the field freely)</span>';
+    bar.innerHTML = html; bar.className = 'suggestbar show';
+    const add = document.getElementById('add-regional');
+    if(add) add.addEventListener('click', () => {
+      kwField.value = [...new Set([...getKeywords(), ...regional])].join(', ');
+      generate();
+    });
+  } else {
+    bar.innerHTML = 'No known violating words auto-detected. Type the keyword manually if you spotted one.';
+    bar.className = 'suggestbar show';
+  }
+  return { roots, regional };
+}
+
+function doSuggestPhone(){
+  const msg = document.getElementById('message').value;
+  const bar = document.getElementById('phonebar');
+  const o = getPhoneOpts();
+  if(!msg.trim()){ bar.className = 'suggestbar'; return; }
+  const found = extractNumbers(msg, o);
+  bar.innerHTML = found.length
+    ? 'Found phone-like number(s): <span class="vars">' + found.map(escapeHtml).join('</span>, <span class="vars">') + '</span>. The pattern below should catch these + disguised forms.'
+    : 'No phone-like number found (needs ≥ ' + o.min + ' digits). Lower “Min digits” if the number is short.';
+  bar.className = 'suggestbar show';
+}
+
+function generatePhone(){
+  const o = getPhoneOpts();
+  const pattern = buildPhoneRegex(o);
+  renderRegex([pattern]);
+  const regexes = compileAll([pattern], false);
+
+  const perms = document.getElementById('perms');
+  const list = phoneSamples(o).filter(s => regexes.some(re => re.test(s)));
+  perms.innerHTML = '';
+  if(list.length) list.forEach(p => { const s=document.createElement('span'); s.className='chip'; s.textContent=p; perms.appendChild(s); });
+  else perms.innerHTML = '<span class="placeholder">Adjust options to see sample formats.</span>';
+
+  document.querySelector('#ci-note span').innerHTML = 'Phone pattern. Raise <b>Min digits</b> to avoid matching order IDs / prices; lower it for short numbers.';
+
+  const msg = document.getElementById('message').value.trim();
+  const seed = []; if(msg) seed.push(msg);
+  seed.push(...phoneSamples(o).slice(0,3));
+  const tests = document.getElementById('tests');
+  if(tests.value.trim()==='' || tests.dataset.auto==='1'){ tests.value = seed.join('\n'); tests.dataset.auto='1'; }
+  runTests();
+}
+
+function generate(){
+  if(currentMode() === 'phone') return generatePhone();
+  const opts = currentOpts();
+  let keywords = getKeywords();
+  if(!keywords.length){ doSuggest(); keywords = getKeywords(); }   // auto-detect if empty
+  const exclusions = getExclusions();
+  const patterns = buildPatterns(keywords, opts, exclusions);
+  renderRegex(patterns);
+
+  const regexes = compileAll(patterns, opts.ci);
+
+  // permutations
+  const perms = document.getElementById('perms');
+  if(!keywords.length){ perms.innerHTML = '<span class="placeholder">Enter or detect a keyword first.</span>'; }
+  else {
+    const list = samplePermutations(keywords, regexes);
+    perms.innerHTML = '';
+    if(list.length) list.forEach(p => { const s=document.createElement('span'); s.className='chip'; s.textContent=p; perms.appendChild(s); });
+    else perms.innerHTML = '<span class="placeholder">No sample permutations matched — try toggling options.</span>';
+  }
+
+  // CI note
+  let note = opts.ci
+    ? 'Patterns written <b>without</b> <code>(?i)</code>. Apply your engine’s case-insensitive flag (e.g. <code>IGNORECASE</code> / <code>i</code>).'
+    : 'Case-sensitive: character classes include both cases explicitly.';
+  if(exclusions.length) note += ' <b>Exclusions use negative lookahead</b> <code>(?!…)</code> — needs an engine that supports it (PCRE / Python / Java / JS; NOT Go RE2).';
+  document.querySelector('#ci-note span').innerHTML = note;
+
+  // seed tester
+  const msg = document.getElementById('message').value.trim();
+  const seed = []; if(msg) seed.push(msg);
+  seed.push(...samplePermutations(keywords, regexes).slice(0,4));
+  const tests = document.getElementById('tests');
+  if(tests.value.trim()==='' || tests.dataset.auto==='1'){ tests.value = seed.join('\n'); tests.dataset.auto='1'; }
+  runTests();
+}
+
+function setMode(mode){
+  document.getElementById('kw-mode').style.display = mode==='keyword' ? '' : 'none';
+  document.getElementById('phone-mode').style.display = mode==='phone' ? '' : 'none';
+  document.getElementById('input-hint').textContent = mode==='phone'
+    ? 'Phone mode detects disguised Indonesian numbers — tune “Min digits” to limit false positives.'
+    : 'Built-in word list is generic profanity for detection only — not your QC blacklist.';
+}
+
+function reset(){
+  document.getElementById('message').value = '';
+  document.getElementById('keywords').value = '';
+  document.getElementById('exclusions').value = '';
+  const tests = document.getElementById('tests'); tests.value = ''; tests.dataset.auto = '1';
+  document.getElementById('suggestbar').className = 'suggestbar';
+  document.getElementById('phonebar').className = 'suggestbar';
+  document.getElementById('regex-list').innerHTML = '<span class="placeholder">Generate to build regex…</span>';
+  document.getElementById('perms').innerHTML = '<span class="placeholder">Generate to see sample evasions…</span>';
+  document.getElementById('test-results').innerHTML = '';
+  document.querySelector('#ci-note span').textContent = '';
+  document.querySelector('input[name=preset][value=loose]').checked = true;
+  applyPreset('loose');
+  document.getElementById('opt-ci').checked = true;
+  document.getElementById('ph-min').value = 9;
+  document.getElementById('ph-ozero').checked = true;
+  document.getElementById('ph-sep').checked = true;
+  document.getElementById('ph-prefix').checked = false;
+  document.querySelector('input[name=mode][value=keyword]').checked = true;
+  setMode('keyword');
+  document.getElementById('message').focus();
+}
+
+document.getElementById('generate').addEventListener('click', generate);
+document.getElementById('reset').addEventListener('click', reset);
+document.getElementById('suggest').addEventListener('click', () => { doSuggest(); generate(); });
+document.getElementById('suggest-phone').addEventListener('click', () => { doSuggestPhone(); generate(); });
+document.getElementById('tests').addEventListener('input', () => { document.getElementById('tests').dataset.auto='0'; runTests(); });
+document.querySelectorAll('input[name=preset]').forEach(r => r.addEventListener('change', e => applyPreset(e.target.value)));
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', e => setMode(e.target.value)));
+document.getElementById('copyall').addEventListener('click', e => copyText(currentPatterns().join('\n'), e.target));
+</script>
+</body>
+</html>
