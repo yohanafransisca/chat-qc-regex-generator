@@ -56,4 +56,3 @@ git push -u origin main
 
 The tester uses the **JavaScript** regex engine. Your QC system may use a different
 engine — confirm syntax (inline flags, lookaheads, anchoring) with your developer.
-See [DEV-QUESTIONS.md](DEV-QUESTIONS.md).
