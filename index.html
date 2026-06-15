@@ -287,20 +287,43 @@ function binPack(frags, budget){
   return bins.map(b => b.join('|'));
 }
 
+// A single keyword/phrase can't be split (it must match contiguously). If its
+// fragment exceeds the budget, progressively reduce fuzzing until it fits:
+// drop per-char separators, then repeats, then leetspeak (plain word as last resort).
+function fitFragment(keyword, opts, budget){
+  const ladder = [opts,
+    {...opts, sep:false},
+    {...opts, sep:false, rep:false},
+    {...opts, sep:false, rep:false, leet:false}];
+  for(const o of ladder){
+    const f = buildFragment(keyword, o);
+    if(f.length <= budget) return { frag:f, reduced:(o!==opts), tooLong:false };
+  }
+  const f = buildFragment(keyword, ladder[ladder.length-1]);   // plainest form
+  return { frag:f, reduced:true, tooLong:(f.length > budget) };
+}
+
 // Build one OR MORE patterns, each <= MAXLEN. With exclusions, emit the
 // negative-lookahead dialect: match keyword but NOT when an excluded word is present.
 function buildPatterns(keywords, opts, exclusions){
-  const frags = keywords.map(k=>k.trim()).filter(Boolean).map(k=>buildFragment(k,opts));
-  if(!frags.length) return [];
-  if(exclusions && exclusions.length){
+  const kws = keywords.map(k=>k.trim()).filter(Boolean);
+  if(!kws.length) return { patterns:[], reduced:false, tooLong:false };
+  const hasExcl = !!(exclusions && exclusions.length);
+  let exclPrefix = '', head = '', midTail = '', budget = ALT_BUDGET;
+  if(hasExcl){
     const exclAlt = exclusions.map(plainFragment).filter(Boolean).join('|');
-    const exclPrefix = '^(?!.*(?:^|[\\W_])(?:' + exclAlt + ')(?:[\\W_]|$))';
-    const head = '(?=.*(?:^|[\\W_])(';
-    const midTail = ')(?:[\\W_]|$))';
-    const budget = Math.max(1, MAXLEN - (exclPrefix.length + head.length + midTail.length));
-    return binPack(frags, budget).map(a => exclPrefix + head + a + midTail);
+    exclPrefix = '^(?!.*(?:^|[\\W_])(?:' + exclAlt + ')(?:[\\W_]|$))';
+    head = '(?=.*(?:^|[\\W_])(';
+    midTail = ')(?:[\\W_]|$))';
+    budget = Math.max(1, MAXLEN - (exclPrefix.length + head.length + midTail.length));
   }
-  return binPack(frags, ALT_BUDGET).map(a => wrap(a));
+  const fitted = kws.map(k => fitFragment(k, opts, budget));
+  const frags = fitted.map(f => f.frag);
+  const alts = binPack(frags, budget);
+  const patterns = hasExcl
+    ? alts.map(a => exclPrefix + head + a + midTail)
+    : alts.map(a => wrap(a));
+  return { patterns, reduced: fitted.some(f=>f.reduced), tooLong: fitted.some(f=>f.tooLong) };
 }
 
 // ---- detection ----
@@ -555,7 +578,8 @@ function generate(){
   let keywords = getKeywords();
   if(!keywords.length){ doSuggest(); keywords = getKeywords(); }   // auto-detect if empty
   const exclusions = getExclusions();
-  const patterns = buildPatterns(keywords, opts, exclusions);
+  const built = buildPatterns(keywords, opts, exclusions);
+  const patterns = built.patterns;
   renderRegex(patterns);
 
   const regexes = compileAll(patterns, opts.ci);
@@ -575,6 +599,8 @@ function generate(){
     ? 'Patterns written <b>without</b> <code>(?i)</code>. Apply your engine’s case-insensitive flag (e.g. <code>IGNORECASE</code> / <code>i</code>).'
     : 'Case-sensitive: character classes include both cases explicitly.';
   if(exclusions.length) note += ' <b>Exclusions use negative lookahead</b> <code>(?!…)</code> — needs an engine that supports it (PCRE / Python / Java / JS; NOT Go RE2).';
+  if(built.reduced) note += ' <b>Fuzzing auto-reduced</b> for long keyword(s) to fit ' + MAXLEN + ' chars (per-character separators/repeats dropped).';
+  if(built.tooLong) note += ' <b style="color:var(--no)">⚠ A keyword is too long to fit ' + MAXLEN + ' chars even as a plain word — shorten or split it.</b>';
   document.querySelector('#ci-note span').innerHTML = note;
 
   // seed tester
